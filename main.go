@@ -9,7 +9,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Global variables
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true // Allow all origins
@@ -17,7 +16,6 @@ var upgrader = websocket.Upgrader{
 }
 var clients = make(map[*websocket.Conn]string) // Map connection to order_id
 
-// WebSocket endpoint
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -29,8 +27,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	orderID := r.URL.Query().Get("order_id")
 	clients[conn] = orderID
 
-	// In this example, we don't expect to receive messages from the client,
-	// but the loop is here to keep the connection open and handle any potential incoming messages.
 	for {
 		_, _, err := conn.ReadMessage()
 		if err != nil {
@@ -41,7 +37,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// Supabase webhook handler
 func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	var data struct {
 		OrderID string `json:"order_id"`
@@ -53,7 +48,6 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	// Send update to relevant WebSocket clients
 	message := fmt.Sprintf(`{"order_id":"%s","status":"%s"}`, data.OrderID, data.Status)
 	for conn, orderID := range clients {
 		if orderID == data.OrderID {
@@ -65,9 +59,14 @@ func handleWebhook(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprintln(w, "Welcome to the Peer Pay WebSocket Server!")
+}
+
 func main() {
 	http.HandleFunc("/ws", handleConnections)
 	http.HandleFunc("/webhook", handleWebhook)
+	http.HandleFunc("/", handleRoot) // Register the root route handler
 
 	log.Println("Server started on :8080")
 	err := http.ListenAndServe(":8080", nil)
